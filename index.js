@@ -1,104 +1,36 @@
-const yargs = require('yargs')
-const path = require('path')
-const fs = require('fs')
+const express = require('express')
+const app = express()
 
-const args = yargs
-  .usage('Usage: node $0 [options]')
-  .help('help')
-  .alias('help', 'h')
-  .version('0.0.1')
-  .alias('version', 'v')
-  .example('node $0 --entry ./path --dist ./path --delete')
-  .option('entry', {
-    alias: 'e',
-    describe: 'Путь к читаемой директории',
-    demandOption: true,
-  })
-  .option('dist', {
-    alias: 'd',
-    describe: 'Путь к директории для сохранения файлов',
-    default: './dist',
-  })
-  .option('delete', {
-    alias: 'D',
-    describe: 'Нужно ли удалять исходную директорию?',
-    boolean: true,
-    default: false,
-  }).argv
+const LIMIT = process.env.LIMIT || 25
+const DELAY = process.env.DELAY || 500
+const PORT = process.env.PORT || 3000
+let date = new Date()
 
-const config = {
-  src: path.normalize(path.join(__dirname, args.entry)),
-  dist: path.normalize(path.join(__dirname, args.dist)),
-  delete: args.delete,
-}
+let connections = []
 
-function createDir(src, cb) {
-  fs.mkdir(src, function (err) {
-    if (err && err.code === 'EEXIST') return cb(null)
-    if (err) return cb(err)
+app.get('/date', (req, res, next) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.setHeader('Transfer-Encoding', 'chunked')
+  connections.push(res)
+})
 
-    cb(null)
-  })
-}
-
-function sorter(src) {
-  fs.readdir(src, function (err, files) {
-    if (err) throw err
-
-    files.forEach(function (file) {
-      const currentPath = path.join(src, file)
-
-      const innerDir = path.basename(currentPath)[0].toUpperCase()
-
-      fs.stat(currentPath, function (err, stats) {
-        if (err) throw err
-
-        if (stats.isDirectory()) {
-          sorter(currentPath)
-        } else {
-          createDir(config.dist, function (err) {
-            if (err) throw err
-
-            createDir(path.join(args.dist, innerDir), function (err) {
-              if (err) throw err
-
-              fs.link(
-                currentPath,
-                path.join(args.dist, innerDir, path.basename(currentPath)),
-                function (err) {
-                  if (err) {
-                    console.error(err.message)
-                    return
-                  }
-                }
-              )
-
-              if (args.delete) {
-                console.log(currentPath)
-                fs.unlink(currentPath, (err) => {
-                  if (err) {
-                    console.log(err)
-                    return
-                  }
-                })
-              }
-            })
-          })
-        }
-      })
+let tick = 0
+setTimeout(function run() {
+  console.log(`${tick}, at time ${date}`)
+  if (++tick > LIMIT) {
+    connections.map((res) => {
+      res.write(`Server closed the connection at time: ${date}\n`)
+      res.end()
     })
-  })
-}
-try {
-  sorter(config.src)
-} catch (error) {
-  console.log(error.message)
-}
-
-process.on('exit', function () {
-  if (args.delete) {
-    fs.rmdirSync(config.src, { recursive: true }, (err) => {
-      if (err) throw err
-    })
+    connections = []
+    tick = 0
   }
+  connections.map((res, i) => {
+    res.write(`Hello ${i} user! Tick: ${tick}, date: ${date}\n`)
+  })
+  setTimeout(run, DELAY)
+}, DELAY)
+
+app.listen(PORT, () => {
+  console.log(`Server is running port on ${PORT}`)
 })
