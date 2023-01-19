@@ -1,9 +1,9 @@
 const express = require('express')
 const app = express()
 
-const LIMIT = process.env.LIMIT || 25
-const DELAY = process.env.DELAY || 500
-const PORT = process.env.PORT || 3000
+const LIMIT = 25
+const DELAY = 500
+const PORT = 3000
 let date = new Date()
 
 let connections = []
