@@ -32,73 +32,128 @@ const config = {
   delete: args.delete,
 }
 
-function createDir(src, cb) {
-  fs.mkdir(src, function (err) {
-    if (err && err.code === 'EEXIST') return cb(null)
-    if (err) return cb(err)
+function readdir(src) {
+  return new Promise((resolve, reject) => {
+    fs.readdir(src, (err, files) => {
+      if (err) reject(err)
 
-    cb(null)
+      resolve(files)
+    })
   })
 }
 
-function sorter(src) {
-  fs.readdir(src, function (err, files) {
-    if (err) throw err
+function createDir(src) {
+  return new Promise((resolve, reject) => {
+    fs.mkdir(src, (err) => {
+      if (err) reject(err)
 
-    files.forEach(function (file) {
+      resolve(src)
+    })
+  })
+}
+
+function stats(src) {
+  return new Promise((resolve, reject) => {
+    fs.stat(src, (err, stat) => {
+      if (err) reject(err)
+
+      resolve(stat)
+    })
+  })
+}
+
+(async function () {
+  async function sorter(src) {
+    const files = await readdir(src)
+
+    for (const file of files) {
       const currentPath = path.join(src, file)
+      const stat = await stats(currentPath)
 
-      const innerDir = path.basename(currentPath)[0].toUpperCase()
-
-      fs.stat(currentPath, function (err, stats) {
-        if (err) throw err
-
-        if (stats.isDirectory()) {
-          sorter(currentPath)
-        } else {
-          createDir(config.dist, function (err) {
-            if (err) throw err
-
-            createDir(path.join(args.dist, innerDir), function (err) {
-              if (err) throw err
-
-              fs.link(
-                currentPath,
-                path.join(args.dist, innerDir, path.basename(currentPath)),
-                function (err) {
-                  if (err) {
-                    console.error(err.message)
-                    return
-                  }
-                }
-              )
-
-              if (args.delete) {
-                console.log(currentPath)
-                fs.unlink(currentPath, (err) => {
-                  if (err) {
-                    console.log(err)
-                    return
-                  }
-                })
-              }
-            })
-          })
-        }
-      })
-    })
-  })
-}
-try {
-  sorter(config.src)
-} catch (error) {
-  console.log(error.message)
-}
-
-process.on('exit', function () {
-  if (args.delete) {
-    fs.rmdirSync(config.src, { recursive: true }, (err) => {
-      if (err) throw err
-    })
+      if (stat.isDirectory()) {
+        await sorter(currentPath)
+      } else {
+        await createDir(config.dist)
+        console.log(`copy: ${currentPath}`)
+      }
+    }
   }
-})
+
+  try {
+    await sorter(config.src)
+    console.log('done')
+  } catch (error) {
+    console.log(error)
+  }
+})()
+
+// function createDir(src, cb) {
+//   fs.mkdir(src, function (err) {
+//     if (err && err.code === 'EEXIST') return cb(null)
+//     if (err) return cb(err)
+
+//     cb(null)
+//   })
+// }
+
+// function sorter(src) {
+//   fs.readdir(src, function (err, files) {
+//     if (err) throw err
+
+//     files.forEach(function (file) {
+//       const currentPath = path.join(src, file)
+
+//       const innerDir = path.basename(currentPath)[0].toUpperCase()
+
+//       fs.stat(currentPath, function (err, stats) {
+//         if (err) throw err
+
+//         if (stats.isDirectory()) {
+//           sorter(currentPath)
+//         } else {
+//           createDir(config.dist, function (err) {
+//             if (err) throw err
+
+//             createDir(path.join(args.dist, innerDir), function (err) {
+//               if (err) throw err
+
+//               fs.link(
+//                 currentPath,
+//                 path.join(args.dist, innerDir, path.basename(currentPath)),
+//                 function (err) {
+//                   if (err) {
+//                     console.error(err.message)
+//                     return
+//                   }
+//                 }
+//               )
+
+//               if (args.delete) {
+//                 console.log(currentPath)
+//                 fs.unlink(currentPath, (err) => {
+//                   if (err) {
+//                     console.log(err)
+//                     return
+//                   }
+//                 })
+//               }
+//             })
+//           })
+//         }
+//       })
+//     })
+//   })
+// }
+// try {
+//   sorter(config.src)
+// } catch (error) {
+//   console.log(error.message)
+// }
+
+// process.on('exit', function () {
+//   if (args.delete) {
+//     fs.rmdirSync(config.src, { recursive: true }, (err) => {
+//       if (err) throw err
+//     })
+//   }
+// })
