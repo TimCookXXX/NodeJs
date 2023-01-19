@@ -1,7 +1,6 @@
 const yargs = require('yargs')
 const path = require('path')
 const fs = require('fs')
-const { resolve } = require('path')
 
 const args = yargs
   .usage('Usage: node $0 [options]')
