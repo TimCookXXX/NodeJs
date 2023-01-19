@@ -4,7 +4,7 @@ const app = express()
 const LIMIT = 25
 const DELAY = 500
 const PORT = 3000
-let date = new Date()
+let date
 
 let connections = []
 
@@ -16,6 +16,7 @@ app.get('/date', (req, res, next) => {
 
 let tick = 0
 setTimeout(function run() {
+  date = new Date()
   console.log(`${tick}, at time ${date}`)
   if (++tick > LIMIT) {
     connections.map((res) => {
