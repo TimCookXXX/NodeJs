@@ -1,6 +1,7 @@
 const yargs = require('yargs')
 const path = require('path')
 const fs = require('fs')
+const { resolve } = require('path')
 
 const args = yargs
   .usage('Usage: node $0 [options]')
@@ -42,12 +43,22 @@ function readdir(src) {
   })
 }
 
-function createDir(src) {
+function mkDir(src) {
   return new Promise((resolve, reject) => {
-    fs.mkdir(src, (err) => {
+    createDir(src, (err) => {
       if (err) reject(err)
 
-      resolve(src)
+      resolve()
+    })
+  })
+}
+
+function copyFile(from, to) {
+  return new Promise((resolve, reject) => {
+    fs.link(from, to, (err) => {
+      if (err) reject(err)
+
+      resolve()
     })
   })
 }
@@ -62,6 +73,15 @@ function stats(src) {
   })
 }
 
+function createDir(src, cb) {
+  fs.mkdir(src, function (err) {
+    if (err && err.code === 'EEXIST') return cb(null)
+    if (err) return cb(err)
+
+    cb(null)
+  })
+}
+
 (async function () {
   async function sorter(src) {
     const files = await readdir(src)
@@ -73,15 +93,25 @@ function stats(src) {
       if (stat.isDirectory()) {
         await sorter(currentPath)
       } else {
-        await createDir(config.dist)
-        console.log(`copy: ${currentPath}`)
+        await mkDir(config.dist)
+
+        const innerDir = path.basename(currentPath)[0].toUpperCase()
+
+        await mkDir(path.join(args.dist, innerDir))
+        await copyFile(
+          currentPath,
+          path.join(args.dist, innerDir, path.basename(currentPath))
+        )
       }
     }
   }
 
   try {
     await sorter(config.src)
-    console.log('done')
+
+    if (args.delete) {
+      fs.rmSync(config.src, { recursive: true })
+    }
   } catch (error) {
     console.log(error)
   }
