@@ -5,7 +5,6 @@ const LIMIT = 25
 const DELAY = 500
 const PORT = 3000
 let date
-
 let connections = []
 
 app.get('/date', (req, res, next) => {
@@ -16,7 +15,7 @@ app.get('/date', (req, res, next) => {
 
 let tick = 0
 setTimeout(function run() {
-  date = new Date()
+  date = new Date().toUTCString()
   console.log(`${tick}, at time ${date}`)
   if (++tick > LIMIT) {
     connections.map((res) => {
